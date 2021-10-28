@@ -11,7 +11,7 @@ const listNode = document.getElementById('cars-list');
     const frag = document.createDocumentFragment();
     for(const car of data) {
       const li = document.createElement('li');
-      li.textContent = car.make;
+      li.textContent = car.name;
       frag.append(li);
     }
     listNode.innerHTML="";

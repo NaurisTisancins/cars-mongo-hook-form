@@ -1,25 +1,56 @@
 require("dotenv").config();
-const morgan = require('morgan');
-
-
+// const morgan = require('morgan');
+const mongoose = require('mongoose');
+// const cors = require('cors');
 
 // console.log(process.env);
-
 const {
-  // SERVER_ID
-  PORT = 3000,
+  PORT = 3001,
+  MONGODB_URI = "mongodb://localhost/cars" //<-- implicit db creation
 } = process.env;
 
-const cars = [
-  {
-    make: 'tesla',
-    bhp: 3,
-  },
-  {
-    make: 'tesla2',
-    bhp: 3,
+(async () => {
+  try {
+    const conn = await mongoose.connect(MONGODB_URI);
+    // console.log("connected", conn);
+    // this is for errors after a connection has been established
+    mongoose.connection.on("error", (err) => {
+      console.log(err);
+    });
+  } catch (error) {
+    // this is for connection error
+    console.log(error);
   }
-];
+})();
+
+const Schema = mongoose.Schema;
+const carSchema = new Schema({
+  name: {
+    type: String,
+    required: true
+  },
+  bhp: {
+    type: Number,
+    required: true
+  },
+  avatar_url: {
+    type: String,
+    default: 'https://static.thenounproject.com/png/449586-200.png'
+  }
+});
+
+const Car = mongoose.model('Car', carSchema);
+
+// const cars = [
+//   {
+//     make: 'tesla',
+//     bhp: 3,
+//   },
+//   {
+//     make: 'tesla2',
+//     bhp: 3,
+//   }
+// ];
 
 const express = require("express");
 
@@ -30,8 +61,8 @@ const app = express();
 // [fn, fn2, fn3]
 
 app.use(express.static('public'));
-
 app.use(express.json());
+// app.use(cors());
 
 // app.use(function(req, res, next){
 //   console.log('middleware');
@@ -43,16 +74,40 @@ app.use(express.json());
 // })
 
 app.get('/api/v1/cars', (req, res) => {
-  res.status(200).json(cars);
-});
+  Car.find({}).exec((err, cars) => {
+    if (err) return res.status(500).send(err);
+    res.status(200).json(cars);
+  })
+});//end of get
 
 app.post('/api/v1/cars', (req, res) => {
   console.log(req.body);
-  cars.push(req.body)
-  res.sendStatus(201);
-});
+  const car = new Car(req.body);
+  car.save((err, newCar) => {
+    if (err) return res.status(500).send(err);
+    res.status(201).send(newCar);
+  })
+});//end of add
 
+app.delete('/api/v1/cars/:id', (req, res) => {
+  Car.deleteOne({ _id: req.params.id }, (err) => {
+    if (err) return res.status(500).send(err);
+    res.sendStatus(204);
+  })
+});//end of delete
 
+app.put('/api/v1/cars/update/:id', async (req, res) => {
+  try {
+    const id = req.params.id; 
+    const updates = req.body;
+    //findByIdAndUpdate returns the objects as it was before the update
+    const result = await Car.findByIdAndUpdate(id, updates);
+    const updateCar = await Car.findOne({ "_id": result.id });
+    res.send(updateCar);
+  } catch (err) {
+    console.log(err.message);
+  }
+});//end of update
 
 app.listen(PORT, () => {
   console.log(`server listening on port ${PORT}`);
